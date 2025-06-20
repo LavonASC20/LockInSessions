@@ -7,4 +7,4 @@
 
 ## Files
 - 'linear_regression_from_scratch.py' Implementation using NumPy
-- 'titanic_eda.ipynb' EDA of Titanic Dataset
+- 'mpg_eda.ipynb' EDA of Miles per Gallon Dataset
