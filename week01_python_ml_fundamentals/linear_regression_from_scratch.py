@@ -78,7 +78,7 @@ class LinearRegression:
                 gradient_norms[iter] += np.linalg.norm(grad)
                 self.beta -= lr * grad
             loss[iter] /= y.shape[0]
-            if gradient_norms[iter] < tol:
+            if np.allclose(gradient_norms[iter], 0, tol):
                 break
             if iter % 10 == 0:
                 print(f'Iter: {iter} \nLoss: {loss[-1]} \nGradient Norm: {gradient_norms[-1]}')
@@ -94,3 +94,4 @@ class LinearRegression:
     
     def score(self, x: np.ndarray, y: np.ndarray):
         return np.mean((y - self.predict(x))**2)
+    
