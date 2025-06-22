@@ -1,11 +1,14 @@
 import numpy as np
+from typeguard import typechecked
 from IPython.display import clear_output
 
+# @typechecked # decorator implements type checking of arguments against function signature type hints
 class LinearRegression:
     def __init__(self):
         self.beta = None
 
-    def loss_func(self, X: np.ndarray, y: np.ndarray, beta: np.ndarray, method: str, lmbda = None) -> float:
+    
+    def loss_func(self, X: np.ndarray, y: np.ndarray, beta: np.ndarray, method: str, lmbda = None) -> float: # helper
         assert method in ['ols', 'ridge', 'lasso']
 
         if method == 'ols':
@@ -18,7 +21,7 @@ class LinearRegression:
             return (y-X.dot(beta)).T.dot(y-X.dot(beta))/y.shape[0] + lmbda * np.sum(np.abs(beta[:-1]))/beta[:-1].shape[0]
 
 
-    def gradient_step_func(self, X: np.ndarray, y: np.ndarray, beta: np.ndarray, method: str, lmbda = None) -> np.ndarray:
+    def gradient_step_func(self, X: np.ndarray, y: np.ndarray, beta: np.ndarray, method: str, lmbda = None) -> np.ndarray: # helper
         assert method in ['ols', 'ridge', 'lasso']
 
         if method == 'ols':
@@ -31,13 +34,36 @@ class LinearRegression:
             return -2*X.T.dot(y-X.dot(beta))/y.shape[0] + lmbda * np.concatenate([np.sign(beta[:-1]), np.array([0])])/beta.shape[0]
         
 
-    def fit(self, X: np.ndarray, y: np.ndarray, lr: float = None, iters: int = None, tol: float = None, method: str = None, lmbda: float = None, batch_size: int = None):
+    def fit(self, X: np.ndarray, y: np.ndarray, lr: float = None, iters: int = None, tol: float = None, method: str = None, lmbda: float = None, batch_size: int = None, random_state: int = None):
+        '''
+        Parameters: 
+        X - Design matrix with no intercept column of ones, contains feature vectors, 
+            size [observations x features] in (N, d) form
+        y - Target vector, size [observation x 1] in either (N, 1) or (N, ) form
+        lr (default = 1e-3) - Learning rate
+        iters (default = 1e5) - Max number of iterations 
+        tol (default = 1e-6) - Gradient norm convergence tolerance
+        method (default = 'ols') - Optimization method in ['ols', 'ridge', 'lasso'] for
+                 ordinary least squares, ridge, and lasso, respectively
+        lmbda (default = 1) - Regularization factor for ridge and lasso regression
+        batch_size (default = N) - Size of mini-batches for mini-batch stochastic gradient descent
+        random_state (default = None) - Seed for random data shuffler in stochastic optimizer, reproducibility if needed
+
+        Returns:
+        beta - Vector of fitted parameters, size [features, 1] in (d, ) form
+        loss - Loss values over each iteration of training
+        gradient_norms - Norms of gradients over each iteration of training
+        '''
+        
+        # called function
+        if random_state is not None:
+            np.random.seed(random_state)
         if batch_size is None or batch_size >= int(X.shape[0]): # if given a batch size, mini-batch SGD is used
             batch_size = int(X.shape[0])
         if lr is None:
             lr = 1e-3
         if iters is None: 
-            iters = int(1e5)
+            iters = int(1e4)
         if tol is None:
             tol = 1e-6
         if method is None:
@@ -48,7 +74,7 @@ class LinearRegression:
 
         self.X = X
         self.y = y
-        self.beta = np.random.rand(self.X.shape[1] + 1, ) # plus 1 to account for bias term
+        self.beta = np.random.rand(self.X.shape[1] + 1, ) # plus 1 to account for bias (intercept) term
         self.lr = abs(lr)
         self.iters = iters
         self.tol = abs(tol)
@@ -84,7 +110,7 @@ class LinearRegression:
                 print(f"Gradient stabilized in iteration {iter}")
                 break
             if iter % 1000 == 0:
-                print(f'Iter: {iter} \nLoss: {loss[iter]} \nGradient Norm: {gradient_norms[iter]}')
+                print(f'Iteration: {iter} \nLoss: {loss[iter]} \nGradient Norm: {gradient_norms[iter]}')
             if iter % 3000 == 0:
                 clear_output(wait = True)
 
@@ -95,11 +121,28 @@ class LinearRegression:
 
         return self.beta, loss, gradient_norms
     
-    def predict(self, x: np.ndarray):
+    def predict(self, x: np.ndarray) -> np.ndarray:
+        '''
+        Parameters:
+        x - Batch of any number of observations , i.e. of size [any x d], from which to make predictions
+
+        Returns:
+        np.ndarray containing predictions for each observation in the batch, size [any x 1] 
+        '''
+
         if self.beta is None:
             raise ValueError('Model must be fit to data first, call the fit() method before prediction')
         return np.hstack((x, np.ones((x.shape[0], 1)))).dot(self.beta)
     
-    def score(self, x: np.ndarray, y: np.ndarray):
+    def score(self, x: np.ndarray, y: np.ndarray) -> float:
+        '''
+        Parameters:
+        x - Batch of any number of observations , i.e. of size [any x d], from which to score model predictions
+        y - Batch of targets associated to observations in x, size [any x 1] from which to score model predictions
+
+        Returns:
+        float of MSE score of predictions across the batch given in x
+        '''
+
         return np.mean((y - self.predict(x))**2)
     
