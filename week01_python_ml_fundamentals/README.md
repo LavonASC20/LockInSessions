@@ -3,7 +3,7 @@
 ## Topics 
 - Python for Data Science
 - Linear Regression from scratch
-- EDA on Titanic Dataset
+- EDA on Seaborn Miles Per Gallon Dataset
 
 ## Files
 - 'linear_regression_from_scratch.py' Implementation using NumPy
