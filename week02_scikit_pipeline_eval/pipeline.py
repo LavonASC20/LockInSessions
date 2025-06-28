@@ -11,6 +11,15 @@ import pandas as pd
 import os
 import json
 
+def convert_np(obj):
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, (np.float32, np.float64)):
+        return float(obj)
+    if isinstance(obj, (np.int32, np.int64)):
+        return int(obj)
+    raise TypeError(f"Type {type(obj)} not serializable")
+
 def build_pipeline(model = None, random_state: int = 611):
     if model is None:
         model = LogisticRegression(random_state = random_state, batch_size = 64)
@@ -68,6 +77,10 @@ def run_pipeline_workflow(data = None, target_col = None, random_state = 611, sa
     print('Saving feature names...\n\n')
     with open('models/feature_names.txt', 'w') as file:
         json.dump(feature_names, file)
+
+    print('Saving evaluation metrics...\n\n')
+    with open('models/metrics.txt', 'w') as file:
+        json.dump(metrics, file, indent = 4, default = convert_np)
 
     print('Pipeline workflow complete!\n\n')
 
