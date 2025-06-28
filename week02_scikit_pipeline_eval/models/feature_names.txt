@@ -1,0 +1,1 @@
+["survived", "sex", "age", "sibsp", "parch", "fare", "adult_male", "alive", "alone", 2, 3, "Second", "Third", "man", "woman", "B", "C", "D", "E", "F", "G", "Queenstown", "Southampton"]

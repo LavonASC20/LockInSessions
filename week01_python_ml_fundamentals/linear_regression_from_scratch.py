@@ -1,8 +1,6 @@
 import numpy as np
-from typeguard import typechecked
 from IPython.display import clear_output
 
-# @typechecked # decorator implements type checking of arguments against function signature type hints
 class LinearRegression:
     def __init__(self):
         self.beta = None
@@ -84,14 +82,14 @@ class LinearRegression:
 
         loss = np.zeros((iters, ))
         gradient_norms = np.zeros((iters, ))
+        X = np.hstack((X, np.ones((X.shape[0], 1))))
 
         iter = 0
         while iter < iters:
             # use self.X in below so the matrix doesn't grow in size in each iter
-            shuffled_data = np.hstack((self.X, self.y.reshape(-1, 1))) # mini-batch SGD satisfies observation independence
+            shuffled_data = np.hstack((X, self.y.reshape(-1, 1))) # mini-batch SGD satisfies observation independence
             np.random.shuffle(shuffled_data)
             X, y = shuffled_data[:, :-1], shuffled_data[:, -1].reshape(-1, )
-            X = np.hstack((X, np.ones((X.shape[0], 1))))
 
             for start in range(0, X.shape[0], batch_size):
                 if start + batch_size >= X.shape[0]:
