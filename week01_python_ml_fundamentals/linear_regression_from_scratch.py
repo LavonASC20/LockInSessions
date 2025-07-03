@@ -13,10 +13,10 @@ class LinearRegression:
             return (y-X.dot(beta)).T.dot(y-X.dot(beta))/y.shape[0]
         
         elif method == 'ridge':
-            return (y-X.dot(beta)).T.dot(y-X.dot(beta))/y.shape[0] + lmbda * np.linalg.norm(beta[:-1])**2/beta[:-1].shape[0]
+            return (y-X.dot(beta)).T.dot(y-X.dot(beta))/y.shape[0] + lmbda/2 * np.linalg.norm(beta[:-1])**2
         
         elif method == 'lasso':
-            return (y-X.dot(beta)).T.dot(y-X.dot(beta))/y.shape[0] + lmbda * np.sum(np.abs(beta[:-1]))/beta[:-1].shape[0]
+            return (y-X.dot(beta)).T.dot(y-X.dot(beta))/y.shape[0] + lmbda * np.sum(np.abs(beta[:-1]))
 
 
     def gradient_step_func(self, X: np.ndarray, y: np.ndarray, beta: np.ndarray, method: str, lmbda = None) -> np.ndarray: # helper
@@ -26,10 +26,10 @@ class LinearRegression:
             return -2*X.T.dot(y-X.dot(beta))/y.shape[0]
         
         elif method == 'ridge':
-            return -2*X.T.dot(y-X.dot(beta))/y.shape[0] + lmbda * 2*np.concatenate([beta[:-1], np.array([0])])/beta.shape[0]
+            return -2*X.T.dot(y-X.dot(beta))/y.shape[0] + lmbda/y.shape[0] * np.concatenate([beta[:-1], np.array([0])])
         
         elif method == 'lasso':
-            return -2*X.T.dot(y-X.dot(beta))/y.shape[0] + lmbda * np.concatenate([np.sign(beta[:-1]), np.array([0])])/beta.shape[0]
+            return -2*X.T.dot(y-X.dot(beta))/y.shape[0] + lmbda/y.shape[0] * np.concatenate([np.sign(beta[:-1]), np.array([0])])
         
 
     def fit(self, X: np.ndarray, y: np.ndarray, lr: float = None, iters: int = None, tol: float = None, method: str = None, lmbda: float = None, batch_size: int = None, random_state: int = None):

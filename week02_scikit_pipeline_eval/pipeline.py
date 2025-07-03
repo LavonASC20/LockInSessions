@@ -4,12 +4,15 @@ from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from logistic_regression_from_scratch import LogisticRegression
+from data_loader import retrieve_data
+import hyperparam_tuning
 import pickle 
 import seaborn as sns
 import evaluation_suite
 import pandas as pd
 import os
 import json
+import argparse
 
 def convert_np(obj):
     if isinstance(obj, np.ndarray):
@@ -31,33 +34,32 @@ def build_pipeline(model = None, random_state: int = 611):
 
     return pipe
 
-def run_pipeline_workflow(data = None, target_col = None, random_state = 611, save_file_path: str = 'models/LR_model.pkl'):
+def run_pipeline_workflow(data = None, target_col = None, random_state = 611, save_file_path: str = 'models/best_model.pkl'):
     # load and preprocess data
     if data is None or target_col is None:
         print('Incomplete data, showcasing EDA on default Titanic data')
-        data = sns.load_dataset('titanic')
-        target_col = 'survived'
+        trainval, test, feature_names = retrieve_data(seed = random_state)
     os.makedirs(os.path.dirname(save_file_path), exist_ok = True)
 
     print(f'Created save file path: {save_file_path}\n\n')
 
-    print('Cleaning data...\n\n')
-    data, feature_names = clean_data(data)
-    feature_names = feature_names.tolist()
-    X = data.drop(target_col, axis = 'columns').to_numpy()
-    y = data[target_col].to_numpy()
-
     # train test split
     print('Train/test split...\n\n')
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.25, random_state = random_state)
+    trainval, test, feature_names = retrieve_data(seed = random_state)
+    X_train, y_train = trainval[:, :-1], trainval[:, -1]
+    X_test, y_test = test[:, :-1], test[:, -1]
 
     # push data through pipeline using fit_pipeline()
     print('Constructing pipeline...\n\n')
-    pipeline = build_pipeline(LogisticRegression())
-
-    # train model
-    print('Training model...\n\n')
-    pipeline.fit(X_train, y_train)
+    try:
+        with open('models/best_model.pkl', 'rb') as f: # no training needed, load best model from tuning 
+            pipeline = pickle.load(f)
+    except FileNotFoundError: 
+        raise RuntimeError('models/best_model.pkl not found. Try running hyperparam_tuning.py first.')
+    
+    # # train model
+    # print('Training model...\n\n')
+    # pipeline.fit(X_train, y_train)
 
     # predict / evaluation
     print('Predicting and gathering metrics...\n\n')
@@ -69,14 +71,14 @@ def run_pipeline_workflow(data = None, target_col = None, random_state = 611, sa
     evaluation_suite.plot_classification_results(y_true = y_test, y_pred = preds, probs = probs)
     print('Evaluation images saved in plots/eval_suite.png\n\n')
 
-    # pickle / save model parameters
-    print('Saving model parameters...\n\n')
-    with open(save_file_path, 'wb') as file:
-        pickle.dump(pipeline, file)
+    # # pickle / save model parameters
+    # print('Saving model parameters...\n\n')
+    # with open(save_file_path, 'wb') as file:
+    #     pickle.dump(pipeline, file)
     
     print('Saving feature names...\n\n')
     with open('models/feature_names.txt', 'w') as file:
-        json.dump(feature_names, file)
+        json.dump(feature_names.to_list(), file)
 
     print('Saving evaluation metrics...\n\n')
     with open('models/metrics.txt', 'w') as file:
@@ -84,51 +86,25 @@ def run_pipeline_workflow(data = None, target_col = None, random_state = 611, sa
 
     print('Pipeline workflow complete!\n\n')
 
-def clean_data(data):
-    sex_map = {'male': 0, 'female': 1}
-    data['sex'] = data['sex'].map(sex_map)
-
-    data = data.drop('embarked', axis = 'columns')
-
-    pclass_OHE = pd.get_dummies(data['pclass'], drop_first = True).astype(int)
-    data = pd.concat([data, pclass_OHE], axis = 1)
-    data = data.drop('pclass', axis = 'columns')
-
-    # 'embarked' seems to be the same column as 'embark_town'
-    # embarked_OHE = pd.get_dummies(data['embarked'], drop_first = True).astype(int)
-    # data = pd.concat([data, embarked_OHE], axis = 1)
-    # data = data.drop('embarked', axis = 'columns')
-
-    class_OHE = pd.get_dummies(data['class'], drop_first = True).astype(int)
-    data = pd.concat([data, class_OHE], axis = 1)
-    data = data.drop('class', axis = 'columns')
-
-    who_OHE = pd.get_dummies(data['who'], drop_first = True).astype(int)
-    data = pd.concat([data, who_OHE], axis = 1)
-    data = data.drop('who', axis = 'columns')
-
-    data['adult_male'] = data['adult_male'].astype(int)
-
-    deck_OHE = pd.get_dummies(data['deck'], drop_first = True).astype(int)
-    data = pd.concat([data, deck_OHE], axis = 1)
-    data = data.drop('deck', axis = 'columns')
-
-    embark_town_OHE = pd.get_dummies(data['embark_town'], drop_first = True).astype(int)
-    data = pd.concat([data, embark_town_OHE], axis = 1)
-    data = data.drop('embark_town', axis = 'columns')
-
-    alive_map = {'no': 0, 'yes': 1}
-    data['alive'] = data['alive'].map(alive_map)
-
-    data['alone'] = data['alone'].astype(int)
-
-    return data, data.columns
-
 
 def main():
-    run_pipeline_workflow(sns.load_dataset('titanic'), 'survived')
-    print('Training complete, trained model in models/ , results in plots/')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--tune', action = 'store_true', 
+                        help = 'Run hyperparameter tuning using Gaussian Process Bayesian Optimization')
+    parser.add_argument('--run', action = 'store_true', 
+                        help = 'Run evaluation on best saved model')
+    args = parser.parse_args()
 
+    if not (args.tune or args.run):
+        print("No action specified. Use --tune and/or --run.")
+
+    if args.tune:
+        hyperparam_tuning.main()
+        print('Hyperparameter tuning complete, params in models/')
+    
+    if args.run:
+        run_pipeline_workflow(sns.load_dataset('titanic'), 'survived')
+        print('Training complete, trained model in models/ , results in plots/')
 
 if __name__ == '__main__':
     main()

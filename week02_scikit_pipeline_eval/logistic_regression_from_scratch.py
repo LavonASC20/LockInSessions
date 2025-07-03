@@ -2,7 +2,7 @@ import numpy as np
 from IPython.display import clear_output
 
 class LogisticRegression():
-    def __init__(self, lr: float = 1e-3, iters: int = 10000, tol: float = 1e-6, 
+    def __init__(self, lr: float = 1e-3, iters: int = 15000, tol: float = 1e-6, 
                  lmbda: float = 0.0, reg: str = 'none', batch_size: int = None, 
                  verbose: bool = True, random_state: int = 611):
         self.beta = None
@@ -19,12 +19,24 @@ class LogisticRegression():
         return 1/(1 + np.exp(-z))
 
     def bce_loss(self, y_true, y_pred):
+        assert self.reg in ['none', 'ridge', 'lasso']
         y_pred = np.clip(y_pred, 1e-7, 1 - 1e-7) # clip to prevent instability in logarithm calculations
-        return -np.mean(y_true*np.log(y_pred) + (1-y_true)*np.log(1-y_pred))
+        bce = -np.mean(y_true*np.log(y_pred) + (1-y_true)*np.log(1-y_pred))
+        if self.reg == 'ridge':
+            bce += self.lmbda/(2*len(y_true)) * np.sum((self.beta[:-1])**2)
+        elif self.reg == 'lasso':
+            bce += self.lmbda/len(y_true) * np.sum(np.abs(self.beta[:-1]))
+        return bce
 
     def bce_gradient(self, X, y_true, y_pred):
-        return -np.mean((y_true - y_pred)[:, np.newaxis] *X, axis = 0)
-
+        assert self.reg in ['none', 'ridge', 'lasso']
+        bce_grad = -np.mean((y_true - y_pred)[:, np.newaxis] *X, axis = 0)
+        if self.reg == 'ridge':
+            bce_grad += self.lmbda * np.concatenate([self.beta[:-1], np.array([0])])
+        elif self.reg == 'lasso':
+            bce_grad += self.lmbda * np.concatenate([np.sign(self.beta[:-1]), np.array([0])])
+        return bce_grad
+        
     def fit(self, X, y):
         np.random.seed(self.random_state)
         self.X = X
@@ -70,15 +82,14 @@ class LogisticRegression():
     def predict(self, X):
         return (self.predict_proba(X) >= 0.5).astype(int) # deterministic for training and inference (optimality), 
                                                           # can consider vectorized sampling for 
-                                                          # generative modeling cases though
-                                                          
+                                                          # generative modeling cases though                                            
 
     def predict_proba(self, X):
         X = np.hstack((X, np.ones((X.shape[0], 1))))
         probs = self.sigmoid(X @ self.beta)
         return probs
 
-    def score(self, X, y):
+    def score(self, X, y): # accuracy score function
         X = np.hstack((X, np.ones((X.shape[0], 1))))
         return np.mean(self.predict(X) == y)
 
